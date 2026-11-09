@@ -1,0 +1,730 @@
+/* Shoplist — kartka z zeszytu w kratkę, skreślana czerwonym flamastrem.
+   Jedyny „głośny” element to skreślenie produktu. Reszta jest cicha. */
+
+:root {
+  --bg: #e9efec;
+  --paper: #ffffff;
+  --grid: #dbe5ef;
+  --ink: #17231d;
+  --muted: #5d6c65;
+  --line: #ccd8d2;
+  --marker: #e5402a;
+  --marker-ink: #ffffff;
+  --live: #2e8b57;
+  --pending: #b7791f;
+  --focus: #2f6fc1;
+  --shadow: 0 1px 0 rgb(23 35 29 / 6%), 0 10px 30px -18px rgb(23 35 29 / 35%);
+
+  --font: "Bricolage Grotesque Variable", "Segoe UI", system-ui, sans-serif;
+  --cell: 24px; /* bok kratki: rytm pionowy całej kartki */
+  --radius-sheet: 18px;
+  --radius-field: 10px;
+
+  color-scheme: light;
+  font-family: var(--font);
+  font-size: 100%;
+  line-height: 1.5;
+  color: var(--ink);
+  background: var(--bg);
+  -webkit-text-size-adjust: 100%;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0f1513;
+    --paper: #17201c;
+    --grid: #22302a;
+    --ink: #e4ece7;
+    --muted: #93a39b;
+    --line: #2b3832;
+    --marker: #ff6b4f;
+    --marker-ink: #1a0d0a;
+    --live: #4cc285;
+    --pending: #e0a43a;
+    --focus: #7fb2ff;
+    --shadow: 0 1px 0 rgb(0 0 0 / 30%), 0 12px 30px -16px rgb(0 0 0 / 70%);
+    color-scheme: dark;
+  }
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-height: 100dvh;
+}
+
+h1,
+h2,
+p {
+  margin: 0;
+}
+
+:focus-visible {
+  outline: 3px solid var(--focus);
+  outline-offset: 2px;
+}
+
+.muted {
+  color: var(--muted);
+}
+
+.spacer {
+  flex: 1;
+}
+
+/* ---------- Kontrolki ---------- */
+
+.field {
+  width: 100%;
+  min-height: 44px;
+  padding: 0 12px;
+  font: inherit;
+  font-size: 1rem;
+  color: var(--ink);
+  background: var(--paper);
+  border: 1.5px solid var(--line);
+  border-radius: var(--radius-field);
+}
+
+.field:focus {
+  border-color: var(--focus);
+  outline: none;
+}
+
+.field::placeholder {
+  color: var(--muted);
+}
+
+.field--qty {
+  flex: 0 0 5.5rem;
+  width: 5.5rem;
+}
+
+.field-label {
+  font-weight: 600;
+}
+
+.button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 44px;
+  padding: 0 18px;
+  font: inherit;
+  font-weight: 650;
+  color: var(--paper);
+  text-decoration: none;
+  white-space: nowrap;
+  cursor: pointer;
+  background: var(--ink);
+  border: 1.5px solid var(--ink);
+  border-radius: 999px;
+}
+
+.button:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
+}
+
+.button--secondary {
+  color: var(--ink);
+  background: transparent;
+  border-color: var(--line);
+}
+
+.button--small {
+  min-height: 36px;
+  padding: 0 14px;
+  font-size: 0.9375rem;
+}
+
+.button--wide {
+  width: 100%;
+}
+
+.text-button {
+  min-height: 36px;
+  padding: 0 4px;
+  font: inherit;
+  font-weight: 600;
+  color: var(--muted);
+  cursor: pointer;
+  background: none;
+  border: 0;
+}
+
+.text-button--danger {
+  color: var(--marker);
+}
+
+.icon-button {
+  display: inline-grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  color: var(--muted);
+  cursor: pointer;
+  background: none;
+  border: 0;
+  border-radius: 999px;
+}
+
+.icon-button:hover {
+  color: var(--ink);
+}
+
+.form-error {
+  color: var(--marker);
+  font-weight: 600;
+}
+
+/* ---------- Układ strony ---------- */
+
+.page {
+  width: min(100%, 620px);
+  margin: 0 auto;
+  padding: max(16px, env(safe-area-inset-top)) 16px 32px;
+}
+
+.page--list {
+  /* miejsce na przyklejony formularz dodawania */
+  padding-bottom: calc(120px + env(safe-area-inset-bottom));
+}
+
+.page--status {
+  display: grid;
+  gap: 16px;
+  padding-top: 20vh;
+}
+
+.status-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 44px;
+  margin-bottom: 12px;
+}
+
+.topbar__who {
+  color: var(--muted);
+  font-weight: 600;
+}
+
+.back-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-left: -6px;
+  color: var(--muted);
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.page__title {
+  font-size: clamp(2rem, 7vw, 2.75rem);
+  font-weight: 750;
+  line-height: 1.05;
+  letter-spacing: -0.025em;
+  overflow-wrap: anywhere;
+}
+
+/* ---------- Logowanie ---------- */
+
+.login {
+  display: grid;
+  gap: 20px;
+  width: min(100%, 440px);
+  margin: 0 auto;
+  padding: max(40px, 8vh) 20px 40px;
+}
+
+.login__sheet {
+  display: grid;
+  gap: 0;
+  width: 12rem;
+  padding: 12px 20px;
+  background-color: var(--paper);
+  background-image:
+    linear-gradient(var(--grid) 1px, transparent 1px),
+    linear-gradient(90deg, var(--grid) 1px, transparent 1px);
+  background-size: var(--cell) var(--cell);
+  border-radius: 14px;
+  box-shadow: var(--shadow);
+  transform: rotate(-2.5deg);
+}
+
+.login__demo {
+  position: relative;
+  justify-self: start;
+  line-height: var(--cell);
+  font-size: 1.125rem;
+}
+
+.login__demo--done::after {
+  content: "";
+  position: absolute;
+  left: -4px;
+  right: -4px;
+  top: 57%;
+  height: 0.45em;
+  margin-top: -0.22em;
+  background: var(--marker);
+  border-radius: 999px;
+  opacity: 0.85;
+  transform: rotate(-2deg) scaleX(0);
+  transform-origin: left center;
+  animation: strike 600ms 500ms cubic-bezier(0.3, 0.7, 0.2, 1) forwards;
+}
+
+@keyframes strike {
+  to {
+    transform: rotate(-2deg) scaleX(1);
+  }
+}
+
+.login__title {
+  font-size: 3.25rem;
+  font-weight: 800;
+  line-height: 1;
+  letter-spacing: -0.04em;
+}
+
+.login__lead {
+  font-size: 1.125rem;
+  max-width: 34ch;
+}
+
+.login__form {
+  display: grid;
+  gap: 10px;
+  margin-top: 4px;
+}
+
+.login__note {
+  color: var(--muted);
+  font-size: 0.875rem;
+}
+
+/* ---------- Moje listy ---------- */
+
+.new-list {
+  display: flex;
+  gap: 8px;
+  margin: 20px 0 24px;
+}
+
+.lists {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  border-top: 1.5px solid var(--line);
+}
+
+.lists__row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 4px 16px;
+  padding: 16px 2px;
+  color: inherit;
+  text-decoration: none;
+  border-bottom: 1.5px solid var(--line);
+}
+
+.lists__row:hover .lists__name {
+  text-decoration: underline;
+  text-decoration-thickness: 2px;
+  text-underline-offset: 4px;
+}
+
+.lists__name {
+  font-size: 1.25rem;
+  font-weight: 650;
+}
+
+.lists__meta {
+  color: var(--muted);
+  font-size: 0.875rem;
+}
+
+.empty,
+.notice {
+  display: grid;
+  gap: 8px;
+  justify-items: start;
+  padding: 24px 0;
+}
+
+.empty__title {
+  font-size: 1.125rem;
+  font-weight: 650;
+}
+
+/* ---------- Lista ---------- */
+
+.title-button {
+  padding: 0;
+  font: inherit;
+  color: inherit;
+  text-align: left;
+  letter-spacing: inherit;
+  cursor: text;
+  background: none;
+  border: 0;
+}
+
+.title-form {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.title-form__input {
+  font-size: 1.5rem;
+  font-weight: 700;
+}
+
+.list-meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin: 12px 0 16px;
+}
+
+.connection {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--muted);
+  font-size: 0.875rem;
+  font-weight: 600;
+}
+
+.connection__dot {
+  width: 9px;
+  height: 9px;
+  background: var(--pending);
+  border-radius: 50%;
+}
+
+.connection[data-status="open"] .connection__dot {
+  background: var(--live);
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--live) 22%, transparent);
+}
+
+.members {
+  display: flex;
+}
+
+.members__avatar {
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  margin-left: -6px;
+  color: #fff;
+  font-size: 0.75rem;
+  font-weight: 700;
+  border: 2px solid var(--bg);
+  border-radius: 50%;
+}
+
+.members__avatar--more {
+  color: var(--ink);
+  background: var(--line);
+}
+
+/* Kartka w kratkę. Wysokość wiersza = 2 kratki, więc tekst siedzi w liniach. */
+.sheet {
+  padding: calc(var(--cell) / 2) 0;
+  background-color: var(--paper);
+  background-image:
+    linear-gradient(var(--grid) 1px, transparent 1px),
+    linear-gradient(90deg, var(--grid) 1px, transparent 1px);
+  background-size: var(--cell) var(--cell);
+  background-position: -1px -1px;
+  border-radius: var(--radius-sheet);
+  box-shadow: var(--shadow);
+}
+
+.sheet__empty {
+  padding: var(--cell) 20px;
+  color: var(--muted);
+}
+
+.sheet__section {
+  margin: calc(var(--cell) / 2) 20px 0;
+  color: var(--muted);
+  font-size: 0.875rem;
+  font-weight: 650;
+  line-height: var(--cell);
+}
+
+.items {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.item {
+  position: relative;
+  display: flex;
+  align-items: center;
+  min-height: calc(var(--cell) * 2);
+  padding: 0 8px 0 12px;
+}
+
+.item__checkbox {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.item__label {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  gap: 12px;
+  min-height: calc(var(--cell) * 2);
+  padding: 0 8px;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.item__box {
+  flex: none;
+  width: 22px;
+  height: 22px;
+  background: var(--paper);
+  border: 2px solid var(--muted);
+  border-radius: 5px;
+}
+
+.item__checkbox:focus-visible + .item__label .item__box {
+  outline: 3px solid var(--focus);
+  outline-offset: 2px;
+}
+
+.item[data-checked] .item__box {
+  background:
+    no-repeat center / 14px
+      url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 14 14'%3E%3Cpath d='M2 7.5l3 3L12 3' fill='none' stroke='white' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E"),
+    var(--marker);
+  border-color: var(--marker);
+}
+
+.item__text {
+  position: relative;
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 2px 10px;
+  font-size: 1.125rem;
+  overflow-wrap: anywhere;
+}
+
+.item__qty {
+  color: var(--muted);
+  font-size: 0.9375rem;
+}
+
+/* Skreślenie flamastrem: rośnie od lewej przy odhaczeniu, cofa się przy odznaczeniu. */
+.item__strike {
+  position: absolute;
+  left: -5px;
+  right: -5px;
+  top: 57%; /* środek małych liter, nie całej linii (wysokie wydłużenia kroju) */
+  height: 0.48em;
+  margin-top: -0.24em;
+  background: var(--marker);
+  border-radius: 999px;
+  opacity: 0.82;
+  mix-blend-mode: multiply;
+  transform: rotate(-1.5deg) scaleX(0);
+  transform-origin: left center;
+  transition: transform 260ms cubic-bezier(0.3, 0.7, 0.2, 1);
+  pointer-events: none;
+}
+
+@media (prefers-color-scheme: dark) {
+  .item__strike {
+    mix-blend-mode: normal;
+    opacity: 0.6;
+  }
+}
+
+.item[data-checked] .item__strike {
+  transform: rotate(-1.5deg) scaleX(1);
+}
+
+.item[data-checked] .item__name,
+.item[data-checked] .item__qty {
+  color: var(--muted);
+}
+
+.item__edit {
+  flex: none;
+  opacity: 0.55;
+}
+
+.item:hover .item__edit,
+.item__edit:focus-visible {
+  opacity: 1;
+}
+
+.item--editing {
+  padding: 12px 16px;
+  background: color-mix(in srgb, var(--paper) 92%, var(--focus));
+}
+
+.item-editor {
+  display: grid;
+  flex: 1;
+  gap: 8px;
+}
+
+.item-editor__fields,
+.item-editor__actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* Celowo cichy: czerwień jest zarezerwowana dla skreśleń. */
+.delete-list {
+  display: block;
+  margin: 24px auto 0;
+  color: var(--muted);
+  font-size: 0.9375rem;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+/* Formularz dodawania przyklejony do dołu: kciuk sięga bez przewijania. */
+.dock {
+  position: fixed;
+  inset: auto 0 0;
+  display: grid;
+  gap: 10px;
+  width: min(100%, 620px);
+  margin: 0 auto;
+  padding: 12px 16px max(12px, env(safe-area-inset-bottom));
+  background: linear-gradient(to top, var(--bg) 70%, transparent);
+}
+
+.add-item {
+  display: flex;
+  gap: 8px;
+}
+
+.add-item .field {
+  box-shadow: var(--shadow);
+}
+
+.toast {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 10px 10px 16px;
+  color: var(--paper);
+  font-weight: 600;
+  background: var(--ink);
+  border-radius: 14px;
+}
+
+.toast__close {
+  margin-left: auto;
+  color: inherit;
+}
+
+/* ---------- Udostępnianie ---------- */
+
+.overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 10;
+  display: grid;
+  place-items: end center;
+  background: rgb(10 16 13 / 45%);
+}
+
+@media (min-width: 640px) {
+  .overlay {
+    place-items: center;
+  }
+}
+
+.share {
+  display: grid;
+  gap: 16px;
+  width: min(100%, 440px);
+  padding: 20px 20px max(20px, env(safe-area-inset-bottom));
+  background: var(--paper);
+  border-radius: 22px 22px 0 0;
+}
+
+@media (min-width: 640px) {
+  .share {
+    border-radius: 22px;
+  }
+}
+
+.share__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.share__head h2 {
+  font-size: 1.375rem;
+  letter-spacing: -0.01em;
+}
+
+.share__qr {
+  display: grid;
+  place-items: center;
+  padding: 12px;
+  background: #fff; /* QR zawsze na białym, także w trybie ciemnym */
+  border-radius: 14px;
+}
+
+.share__qr img,
+.share__qr-placeholder {
+  width: min(100%, 280px);
+  aspect-ratio: 1;
+}
+
+.share__link {
+  display: flex;
+  gap: 8px;
+}
+
+.share__native {
+  justify-self: center;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .item__strike {
+    transition: none;
+  }
+
+  .login__demo--done::after {
+    animation: none;
+    transform: rotate(-2deg) scaleX(1);
+  }
+}

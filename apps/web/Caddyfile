@@ -1,0 +1,38 @@
+# Serwer statyczny w kontenerze web (za Caddym brzegowym, który robi TLS).
+{
+	admin off
+	auto_https off
+	persist_config off
+}
+
+:8080 {
+	handle /healthz {
+		respond "ok" 200
+	}
+
+	# Konfiguracja runtime: ten sam obraz działa na każdym środowisku,
+	# adres API przychodzi z env kontenera (compose.prod.yml).
+	handle /config.js {
+		header Content-Type "text/javascript; charset=utf-8"
+		header Cache-Control "no-store"
+		respond `window.__SHOPLIST_CONFIG__ = { apiUrl: "{$API_URL}", wsUrl: "{$WS_URL}"};` 200
+	}
+
+	redir /storybook /storybook/ 308
+	handle_path /storybook/* {
+		root * /srv/storybook
+		file_server
+	}
+
+	handle {
+		root * /srv/app
+		# Pliki z hashem w nazwie cache'ujemy na zawsze, resztę (index.html) zawsze świeżo.
+		@hashed path /assets/*
+		header @hashed Cache-Control "public, max-age=31536000, immutable"
+		@other not path /assets/*
+		header @other Cache-Control "no-cache"
+		# SPA: nieznane ścieżki (/lists/..., /join/...) dostają index.html.
+		try_files {path} /index.html
+		file_server
+	}
+}
