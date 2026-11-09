@@ -34,6 +34,23 @@ jobs:
       - name: Walidacja SHA
         run: '[[ "$SHA" =~ ^[0-9a-f]{40}$ ]] || { echo "Podaj pełny SHA (40 znaków)"; exit 1; }'
 
+      - name: Sprawdź konfigurację środowiska
+        env:
+          DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
+          DEPLOY_SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+          DEPLOY_KNOWN_HOSTS: ${{ secrets.DEPLOY_KNOWN_HOSTS }}
+          API_URL: ${{ vars.API_URL }}
+          WEB_URL: ${{ vars.WEB_URL }}
+        run: |
+          missing=()
+          for name in DEPLOY_HOST DEPLOY_SSH_KEY DEPLOY_KNOWN_HOSTS API_URL WEB_URL; do
+            [[ -n "${!name}" ]] || missing+=("$name")
+          done
+          if (( ${#missing[@]} )); then
+            echo "::error::Brak w environment 'production': ${missing[*]} (deploy/README.md, sekcja 5)"
+            exit 1
+          fi
+
       - uses: actions/checkout@v4
         with:
           ref: ${{ env.SHA }}
@@ -61,4 +78,7 @@ jobs:
             "deploy@${DEPLOY_HOST}" "$SHA $GITHUB_ACTOR"
 
       - name: Smoke test (API, wss://, web, Storybook)
-        run: python3 deploy/smoke.py "${{ vars.API_URL }}" --web "${{ vars.WEB_URL }}"
+        env:
+          API_URL: ${{ vars.API_URL }}
+          WEB_URL: ${{ vars.WEB_URL }}
+        run: python3 deploy/smoke.py "$API_URL" --web "$WEB_URL"
