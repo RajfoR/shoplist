@@ -1,0 +1,64 @@
+name: Deploy
+
+# Wołany z CI po zielonym main. Ręcznie (Actions → Deploy → Run workflow) służy do
+# rollbacku albo redeployu: podajesz SHA commita z main, którego obraz jest w GHCR.
+on:
+  workflow_call:
+    inputs:
+      sha:
+        type: string
+        required: true
+  workflow_dispatch:
+    inputs:
+      sha:
+        description: "Pełny SHA commita z main (puste = HEAD wybranej gałęzi)"
+        type: string
+        required: false
+
+permissions:
+  contents: read
+  packages: read
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: production
+      url: ${{ vars.WEB_URL }}
+    concurrency:
+      group: deploy-production
+      cancel-in-progress: false
+    env:
+      SHA: ${{ inputs.sha || github.sha }}
+    steps:
+      - name: Walidacja SHA
+        run: '[[ "$SHA" =~ ^[0-9a-f]{40}$ ]] || { echo "Podaj pełny SHA (40 znaków)"; exit 1; }'
+
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.SHA }}
+
+      - name: Klucz SSH
+        env:
+          SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+          KNOWN_HOSTS: ${{ secrets.DEPLOY_KNOWN_HOSTS }}
+        run: |
+          install -d -m 700 ~/.ssh
+          printf '%s\n' "$SSH_KEY" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          # Przypięty klucz hosta zamiast StrictHostKeyChecking=no.
+          printf '%s\n' "$KNOWN_HOSTS" > ~/.ssh/known_hosts
+
+      - name: Deploy na VPS
+        env:
+          DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
+          # Krótko żyjący token joba (packages: read). VPS używa go tylko do pulla z GHCR
+          # i nie zapisuje go na dysku. Po zakończeniu joba token wygasa.
+          GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          printf '%s\n' "$GHCR_TOKEN" | ssh -i ~/.ssh/deploy_key \
+            -o BatchMode=yes -o IdentitiesOnly=yes -o ConnectTimeout=15 \
+            "deploy@${DEPLOY_HOST}" "$SHA $GITHUB_ACTOR"
+
+      - name: Smoke test (API, wss://, web, Storybook)
+        run: python3 deploy/smoke.py "${{ vars.API_URL }}" --web "${{ vars.WEB_URL }}"

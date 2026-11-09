@@ -1,0 +1,100 @@
+# Produkcja na VPS: caddy (TLS) → web (SPA + Storybook) i backend (API + WS) → db.
+# Uruchamia to skrypt shoplist-deploy (CD), nie ręcznie.
+# Zmienne: /opt/shoplist/.env (wzór: deploy/.env.example) + IMAGE_TAG = SHA commita.
+name: shoplist
+
+x-logging: &logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "3"
+
+services:
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp" # HTTP/3
+    environment:
+      API_DOMAIN: ${API_DOMAIN:?Ustaw API_DOMAIN}
+      WEB_DOMAIN: ${WEB_DOMAIN:?Ustaw WEB_DOMAIN}
+      ACME_EMAIL: ${ACME_EMAIL:?Ustaw ACME_EMAIL}
+    volumes:
+      # Montujemy katalog, nie plik: git checkout podmienia plik (nowy inode),
+      # a bind mount pojedynczego pliku dalej wskazywałby na starą wersję.
+      - ./caddy:/etc/caddy:ro
+      - caddy_data:/data # certyfikaty i klucz konta ACME, nie kasować
+      - caddy_config:/config
+    networks: [edge]
+    cap_drop: [ALL]
+    cap_add: [NET_BIND_SERVICE]
+    security_opt: ["no-new-privileges:true"]
+    logging: *logging
+
+  backend:
+    image: ${BACKEND_IMAGE:?Ustaw BACKEND_IMAGE}:${IMAGE_TAG:?Brak IMAGE_TAG (ustawia go skrypt deployu)}
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: postgresql+asyncpg://shoplist:${POSTGRES_PASSWORD:?Ustaw POSTGRES_PASSWORD}@db:5432/shoplist
+      JWT_SECRET: ${JWT_SECRET:?Ustaw JWT_SECRET}
+      CORS_ORIGINS: '["https://${WEB_DOMAIN}"]'
+    depends_on:
+      db:
+        condition: service_healthy
+    networks: [edge, internal]
+    read_only: true
+    tmpfs: [/tmp]
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]
+    mem_limit: 512m
+    logging: *logging
+
+  web:
+    image: ${WEB_IMAGE:?Ustaw WEB_IMAGE}:${IMAGE_TAG:?Brak IMAGE_TAG (ustawia go skrypt deployu)}
+    restart: unless-stopped
+    environment:
+      # Trafia do /config.js. Obraz jest ten sam dla każdego środowiska.
+      API_URL: https://${API_DOMAIN}
+      WS_URL: wss://${API_DOMAIN}
+    networks: [edge]
+    read_only: true
+    tmpfs: [/data, /config]
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]
+    mem_limit: 128m
+    logging: *logging
+
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: shoplist
+      # Działa tylko przy pierwszej inicjalizacji wolumenu. Późniejsza zmiana w .env
+      # wymaga też ALTER USER w bazie.
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Ustaw POSTGRES_PASSWORD}
+      POSTGRES_DB: shoplist
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U shoplist -d shoplist"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    # Bez "ports": baza nie wychodzi poza sieć internal. Porty publikowane przez
+    # Dockera omijają ufw, więc to jedyne miejsce, gdzie to faktycznie chronimy.
+    networks: [internal]
+    shm_size: 128mb
+    security_opt: ["no-new-privileges:true"]
+    logging: *logging
+
+networks:
+  edge: {}
+  internal:
+    internal: true # brak wyjścia do internetu i brak dostępu z Caddy'ego
+
+volumes:
+  pgdata:
+  caddy_data:
+  caddy_config:

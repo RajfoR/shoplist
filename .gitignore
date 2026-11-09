@@ -1,0 +1,11 @@
+.env
+node_modules/
+dist/
+.expo/
+__pycache__/
+*.pyc
+.pytest_cache/
+.ruff_cache/
+.venv/
+storybook-static/
+*.apk

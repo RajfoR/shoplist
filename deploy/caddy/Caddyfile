@@ -1,0 +1,55 @@
+# Domeny i e-mail przychodzą z /opt/shoplist/.env przez compose.
+# Caddy sam wystawia i odnawia certyfikaty Let's Encrypt (HTTP-01 / TLS-ALPN-01),
+# więc rekordy DNS muszą wskazywać na VPS przed pierwszym startem.
+{
+	email {$ACME_EMAIL}
+}
+
+(security_headers) {
+	header {
+		Strict-Transport-Security "max-age=31536000"
+		X-Content-Type-Options nosniff
+		Referrer-Policy no-referrer
+		-Server
+	}
+}
+
+# API + WebSocket. Caddy przepuszcza Upgrade: websocket bez dodatkowej konfiguracji,
+# więc wss://{$API_DOMAIN}/ws/lists/{id} działa przez ten sam blok.
+{$API_DOMAIN} {
+	import security_headers
+
+	reverse_proxy backend:8000 {
+		# Deploy restartuje backend (jedna replika). Zamiast od razu zwracać 502,
+		# Caddy ponawia połączenie z upstreamem przez 30 s.
+		lb_try_duration 30s
+		lb_try_interval 500ms
+
+		# Reload configu nie zrywa od razu otwartych WebSocketów.
+		stream_close_delay 5m
+
+		header_down -Server
+	}
+
+	# Access log na stdout kontenera (rotuje go logging driver). Token WS nie
+	# trafia do URL-a (patrz CONTRACT.md), więc nie wycieka tutaj.
+	log
+}
+
+# Web: SPA i Storybook (/storybook/) z kontenera web.
+{$WEB_DOMAIN} {
+	import security_headers
+
+	# CSP tylko dla aplikacji. Storybook ma inline skrypty i własne iframe'y.
+	@app not path /storybook*
+	header @app Content-Security-Policy "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; connect-src 'self' https://{$API_DOMAIN} wss://{$API_DOMAIN}; frame-ancestors 'none'; base-uri 'self'; form-action 'self'"
+
+	encode zstd gzip
+
+	reverse_proxy web:8080 {
+		lb_try_duration 30s
+		lb_try_interval 500ms
+	}
+
+	log
+}

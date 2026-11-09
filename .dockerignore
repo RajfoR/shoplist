@@ -1,0 +1,10 @@
+# Kontekst dla apps/web/Dockerfile (backend ma własny kontekst i .dockerignore).
+**/node_modules
+**/dist
+**/storybook-static
+**/.env
+.git
+.github
+backend
+deploy
+docs
