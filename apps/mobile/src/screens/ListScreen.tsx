@@ -15,7 +15,9 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
+import { InviteSheet } from "../components/InviteSheet";
 import { ItemRow } from "../components/ItemRow";
+import { joinUrl } from "../config";
 import { describeError } from "../errors";
 import type { RootStackParamList } from "../navigation";
 import { useColors, type Colors } from "../theme";
@@ -37,11 +39,24 @@ export function ListScreen({ route, navigation }: Props) {
     addItem, toggleItem, updateItem, deleteItem, deleteList,
   } = useList(listId);
 
-  // Tytuł w nagłówku nadąża za zmianą nazwy (także zrobioną przez kogoś innego).
+  const [inviteOpen, setInviteOpen] = useState(false);
+
+  // Nagłówek: tytuł nadąża za zmianą nazwy (także zrobioną przez kogoś innego),
+  // a po prawej przycisk zaproszenia, gdy lista jest już wczytana.
   const listName = list?.name;
+  const loaded = list !== null;
   useLayoutEffect(() => {
-    if (listName) navigation.setOptions({ title: listName });
-  }, [navigation, listName]);
+    navigation.setOptions({
+      ...(listName ? { title: listName } : {}),
+      headerRight: loaded
+        ? () => (
+            <Pressable onPress={() => setInviteOpen(true)} hitSlop={10} accessibilityRole="button">
+              <Text style={[styles.headerButton, { color: c.ink }]}>Zaproś</Text>
+            </Pressable>
+          )
+        : undefined,
+    });
+  }, [navigation, listName, loaded, c.ink]);
 
   // Toast z błędem znika sam po kilku sekundach.
   useEffect(() => {
@@ -166,6 +181,13 @@ export function ListScreen({ route, navigation }: Props) {
         )}
         <AddItemForm colors={c} onAdd={(name, qty) => void addItem(name, qty)} />
       </View>
+
+      <InviteSheet
+        visible={inviteOpen}
+        listName={list.name}
+        url={joinUrl(list.share_token)}
+        onClose={() => setInviteOpen(false)}
+      />
     </KeyboardAvoidingView>
   );
 }
@@ -276,6 +298,7 @@ function StatusView({ colors: c, title, body, action, onBack }: StatusViewProps)
 
 const styles = StyleSheet.create({
   flex: { flex: 1 },
+  headerButton: { fontSize: 16, fontWeight: "700" },
   listContent: { paddingBottom: 24 },
   meta: {
     flexDirection: "row",
