@@ -1,10 +1,11 @@
 import { ShoplistProvider, useAuth, type ShoplistConfig } from "@shoplist/core";
 import * as Crypto from "expo-crypto";
 import { StatusBar } from "expo-status-bar";
-import { ActivityIndicator, Pressable, StyleSheet, Text, View } from "react-native";
+import { ActivityIndicator, StyleSheet, View } from "react-native";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 
 import { apiUrl, wsUrl } from "./src/config";
+import { AppNavigator } from "./src/navigation";
 import { LoginScreen } from "./src/screens/LoginScreen";
 import { secureStorage } from "./src/secureStorage";
 import { useColors } from "./src/theme";
@@ -29,9 +30,9 @@ export default function App() {
   );
 }
 
-// Bramka logowania: ekrany wymagające sesji renderujemy dopiero po zalogowaniu.
+// Bramka logowania: nawigacja (ekrany wymagające sesji) dopiero po zalogowaniu.
 function Root() {
-  const { status, user, logout } = useAuth();
+  const { status } = useAuth();
   const c = useColors();
 
   if (status === "loading") {
@@ -41,21 +42,10 @@ function Root() {
       </View>
     );
   }
-
   if (status === "anonymous") return <LoginScreen />;
-
-  // TYMCZASOWE: w kroku 3 zastąpi to nawigacja z ekranem „Moje listy”.
-  return (
-    <View style={[styles.center, { backgroundColor: c.bg }]}>
-      <Text style={[styles.hello, { color: c.ink }]}>Cześć, {user?.display_name}</Text>
-      <Pressable onPress={() => void logout()}>
-        <Text style={{ color: c.muted }}>Wyloguj</Text>
-      </Pressable>
-    </View>
-  );
+  return <AppNavigator />;
 }
 
 const styles = StyleSheet.create({
-  center: { flex: 1, alignItems: "center", justifyContent: "center", gap: 16 },
-  hello: { fontSize: 24, fontWeight: "700" },
+  center: { flex: 1, alignItems: "center", justifyContent: "center" },
 });
