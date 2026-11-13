@@ -1,11 +1,13 @@
 import { ShoplistProvider, useAuth, type ShoplistConfig } from "@shoplist/core";
 import * as Crypto from "expo-crypto";
 import { StatusBar } from "expo-status-bar";
-import { useState } from "react";
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from "react-native";
+import { SafeAreaProvider } from "react-native-safe-area-context";
 
 import { apiUrl, wsUrl } from "./src/config";
+import { LoginScreen } from "./src/screens/LoginScreen";
 import { secureStorage } from "./src/secureStorage";
+import { useColors } from "./src/theme";
 
 // Poza komponentem: nowy obiekt przy każdym renderze odtwarzałby
 // połączenia i stan w providerze.
@@ -18,59 +20,42 @@ const config: ShoplistConfig = {
 
 export default function App() {
   return (
-    <ShoplistProvider config={config}>
-      <ConnectionCheck />
-      <StatusBar style="auto" />
-    </ShoplistProvider>
+    <SafeAreaProvider>
+      <ShoplistProvider config={config}>
+        <Root />
+        <StatusBar style="auto" />
+      </ShoplistProvider>
+    </SafeAreaProvider>
   );
 }
 
-// TYMCZASOWE: sprawdza ścieżkę telefon → API → SecureStore.
-// W następnym kroku zastąpi go prawdziwy ekran logowania.
-function ConnectionCheck() {
-  const { status, user, loginAsGuest, logout } = useAuth();
-  const [error, setError] = useState<string | null>(null);
+// Bramka logowania: ekrany wymagające sesji renderujemy dopiero po zalogowaniu.
+function Root() {
+  const { status, user, logout } = useAuth();
+  const c = useColors();
 
-  const login = async () => {
-    setError(null);
-    try {
-      await loginAsGuest("Test z telefonu");
-    } catch (err) {
-      setError(String(err));
-    }
-  };
+  if (status === "loading") {
+    return (
+      <View style={[styles.center, { backgroundColor: c.bg }]}>
+        <ActivityIndicator color={c.ink} />
+      </View>
+    );
+  }
 
+  if (status === "anonymous") return <LoginScreen />;
+
+  // TYMCZASOWE: w kroku 3 zastąpi to nawigacja z ekranem „Moje listy”.
   return (
-    <View style={styles.screen}>
-      <Text style={styles.label}>API: {apiUrl}</Text>
-
-      {status === "loading" && <ActivityIndicator size="large" />}
-
-      {status === "anonymous" && (
-        <Pressable style={styles.button} onPress={login}>
-          <Text style={styles.buttonText}>Zaloguj jako gość</Text>
-        </Pressable>
-      )}
-
-      {status === "authenticated" && user && (
-        <>
-          <Text style={styles.title}>Zalogowany: {user.display_name}</Text>
-          <Pressable style={styles.button} onPress={() => void logout()}>
-            <Text style={styles.buttonText}>Wyloguj</Text>
-          </Pressable>
-        </>
-      )}
-
-      {error && <Text style={styles.error}>{error}</Text>}
+    <View style={[styles.center, { backgroundColor: c.bg }]}>
+      <Text style={[styles.hello, { color: c.ink }]}>Cześć, {user?.display_name}</Text>
+      <Pressable onPress={() => void logout()}>
+        <Text style={{ color: c.muted }}>Wyloguj</Text>
+      </Pressable>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  screen: { flex: 1, alignItems: "center", justifyContent: "center", gap: 16, padding: 24 },
-  label: { color: "#5d6c65" },
-  title: { fontSize: 22, fontWeight: "700" },
-  button: { backgroundColor: "#17231d", paddingVertical: 14, paddingHorizontal: 24, borderRadius: 999 },
-  buttonText: { color: "#fff", fontWeight: "600", fontSize: 16 },
-  error: { color: "#e5402a", textAlign: "center" },
+  center: { flex: 1, alignItems: "center", justifyContent: "center", gap: 16 },
+  hello: { fontSize: 24, fontWeight: "700" },
 });
