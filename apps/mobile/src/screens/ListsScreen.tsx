@@ -91,6 +91,17 @@ export function ListsScreen({ navigation }: Props) {
           </View>
 
           {createError && <Text style={[styles.error, { color: c.marker }]}>{createError}</Text>}
+
+          <Pressable
+            onPress={() => {
+              Keyboard.dismiss();
+              navigation.navigate("Scan");
+            }}
+            accessibilityRole="button"
+            style={({ pressed }) => [styles.scanButton, { borderColor: c.line, opacity: pressed ? 0.6 : 1 }]}
+          >
+            <Text style={[styles.buttonText, { color: c.ink }]}>Dołącz do listy kodem QR</Text>
+          </Pressable>
         </View>
       }
       ListEmptyComponent={
@@ -136,6 +147,13 @@ const styles = StyleSheet.create({
   input: { flex: 1, minHeight: 48, borderWidth: 1.5, borderRadius: 10, paddingHorizontal: 12, fontSize: 16 },
   button: { minHeight: 48, paddingHorizontal: 18, borderRadius: 999, justifyContent: "center" },
   buttonText: { fontSize: 16, fontWeight: "700" },
+  scanButton: {
+    minHeight: 48,
+    borderWidth: 1.5,
+    borderRadius: 999,
+    alignItems: "center",
+    justifyContent: "center",
+  },
   error: { fontWeight: "600" },
   row: {
     flexDirection: "row",
@@ -144,7 +162,7 @@ const styles = StyleSheet.create({
     minHeight: 60,
     borderBottomWidth: 1.5,
   },
-  rowName: { flex: 1, fontSize: 19, fontWeight: "650" as "600" },
+  rowName: { flex: 1, fontSize: 19, fontWeight: "600" },
   chevron: { fontSize: 26, marginLeft: 12 },
   empty: { paddingVertical: 32, gap: 8 },
   emptyTitle: { fontSize: 17, fontWeight: "600" },

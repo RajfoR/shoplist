@@ -5,6 +5,7 @@ import { useColorScheme } from "react-native";
 
 import { ListScreen } from "./screens/ListScreen";
 import { ListsScreen } from "./screens/ListsScreen";
+import { ScanScreen } from "./screens/ScanScreen";
 import { useColors } from "./theme";
 
 // Jakie ekrany istnieją i jakie dane dostaje każdy z nich.
@@ -12,6 +13,7 @@ import { useColors } from "./theme";
 export type RootStackParamList = {
   Lists: undefined;
   List: { listId: string; name?: string };
+  Scan: undefined;
 };
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
@@ -38,6 +40,7 @@ export function AppNavigator() {
           component={ListScreen}
           options={({ route }) => ({ title: route.params.name ?? "Lista" })}
         />
+        <Stack.Screen name="Scan" component={ScanScreen} options={{ title: "Dołącz do listy" }} />
       </Stack.Navigator>
     </NavigationContainer>
   );

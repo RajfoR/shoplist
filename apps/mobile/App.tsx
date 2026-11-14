@@ -1,5 +1,4 @@
 import { ShoplistProvider, useAuth, type ShoplistConfig } from "@shoplist/core";
-import * as Crypto from "expo-crypto";
 import { StatusBar } from "expo-status-bar";
 import { ActivityIndicator, StyleSheet, View } from "react-native";
 import { SafeAreaProvider } from "react-native-safe-area-context";
@@ -9,6 +8,7 @@ import { AppNavigator } from "./src/navigation";
 import { LoginScreen } from "./src/screens/LoginScreen";
 import { secureStorage } from "./src/secureStorage";
 import { useColors } from "./src/theme";
+import { generateId } from "./src/uuid";
 
 // Poza komponentem: nowy obiekt przy każdym renderze odtwarzałby
 // połączenia i stan w providerze.
@@ -16,7 +16,7 @@ const config: ShoplistConfig = {
   apiUrl,
   wsUrl,
   storage: secureStorage,
-  generateId: () => Crypto.randomUUID(),
+  generateId,
 };
 
 export default function App() {

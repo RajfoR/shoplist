@@ -9,6 +9,7 @@
     "@shoplist/api-client": "workspace:^",
     "@shoplist/core": "workspace:^",
     "expo": "~58.0.25",
+    "expo-camera": "~58.0.14",
     "expo-crypto": "~58.0.8",
     "expo-secure-store": "~58.0.3",
     "expo-status-bar": "~58.0.5",
