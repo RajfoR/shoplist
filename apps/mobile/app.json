@@ -6,7 +6,9 @@
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "automatic",
-    "platforms": ["android"],
+    "platforms": [
+      "android"
+    ],
     "android": {
       "package": "pl.rajfor.shoplist",
       "adaptiveIcon": {
@@ -15,11 +17,25 @@
         "backgroundImage": "./assets/android-icon-background.png",
         "monochromeImage": "./assets/android-icon-monochrome.png"
       },
-      "predictiveBackGestureEnabled": false
+      "predictiveBackGestureEnabled": false,
+      "permissions": [
+        "android.permission.CAMERA"
+      ]
     },
     "plugins": [
       "expo-secure-store",
-      ["expo-camera", { "recordAudioAndroid": false }]
-    ]
+      [
+        "expo-camera",
+        {
+          "recordAudioAndroid": false
+        }
+      ]
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "e1430dac-d6a5-4b38-8713-ba19eabe2168"
+      }
+    },
+    "owner": "rajfor"
   }
 }
