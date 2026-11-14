@@ -1,7 +1,7 @@
 import { useHeaderHeight } from "@react-navigation/elements";
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
 import { useJoinList } from "@shoplist/core";
-import { CameraView, useCameraPermissions, type BarcodeScanningResult } from "expo-camera";
+import type { BarcodeScanningResult } from "expo-camera";
 import { useRef, useState } from "react";
 import {
   ActivityIndicator,
@@ -14,16 +14,16 @@ import {
   View,
 } from "react-native";
 
+import { ScannerCamera } from "../components/ScannerCamera";
 import type { RootStackParamList } from "../navigation";
 import { extractShareToken } from "../shareToken";
-import { useColors, type Colors } from "../theme";
+import { useColors } from "../theme";
 
 type Props = NativeStackScreenProps<RootStackParamList, "Scan">;
 
 export function ScanScreen({ navigation }: Props) {
   const c = useColors();
   const headerHeight = useHeaderHeight();
-  const [permission, requestPermission] = useCameraPermissions();
   const { join, joining } = useJoinList();
   const [message, setMessage] = useState<string | null>(null);
   const [manual, setManual] = useState("");
@@ -73,12 +73,10 @@ export function ScanScreen({ navigation }: Props) {
       keyboardVerticalOffset={headerHeight}
     >
       <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
-        <CameraArea
-          colors={c}
-          granted={permission?.granted ?? false}
-          canAskAgain={permission?.canAskAgain ?? true}
-          loading={permission === null}
-          onRequest={() => void requestPermission()}
+        <ScannerCamera
+          barcodeTypes={["qr"]}
+          hint="Skieruj aparat na kod QR zaproszenia"
+          purpose="Aparat służy tylko do odczytania kodu QR zaproszenia."
           onScanned={onScanned}
         />
 
@@ -125,91 +123,9 @@ export function ScanScreen({ navigation }: Props) {
   );
 }
 
-interface CameraAreaProps {
-  colors: Colors;
-  granted: boolean;
-  canAskAgain: boolean;
-  loading: boolean;
-  onRequest: () => void;
-  onScanned: (result: BarcodeScanningResult) => void;
-}
-
-/** Podgląd aparatu albo prośba o uprawnienie, zależnie od jego stanu. */
-function CameraArea({ colors: c, granted, canAskAgain, loading, onRequest, onScanned }: CameraAreaProps) {
-  if (loading) {
-    return (
-      <View style={[styles.camera, styles.center, { backgroundColor: c.paper }]}>
-        <ActivityIndicator color={c.ink} />
-      </View>
-    );
-  }
-
-  if (!granted) {
-    return (
-      <View style={[styles.camera, styles.center, { backgroundColor: c.paper, borderColor: c.line }]}>
-        <Text style={[styles.permTitle, { color: c.ink }]}>Potrzebny dostęp do aparatu</Text>
-        <Text style={[styles.permBody, { color: c.muted }]}>
-          {canAskAgain
-            ? "Aparat służy tylko do odczytania kodu QR zaproszenia. Nic nie jest nagrywane."
-            : "Dostęp został zablokowany. Włącz go w ustawieniach telefonu albo wklej link poniżej."}
-        </Text>
-        {canAskAgain && (
-          <Pressable onPress={onRequest} style={[styles.button, { backgroundColor: c.ink }]} accessibilityRole="button">
-            <Text style={[styles.buttonText, { color: c.paper }]}>Zezwól na aparat</Text>
-          </Pressable>
-        )}
-      </View>
-    );
-  }
-
-  return (
-    <View style={styles.camera}>
-      <CameraView
-        style={StyleSheet.absoluteFill}
-        facing="back"
-        barcodeScannerSettings={{ barcodeTypes: ["qr"] }}
-        onBarcodeScanned={onScanned}
-      />
-      {/* Ramka podpowiada, gdzie trzymać kod. pointerEvents: nie zasłania aparatu dla dotyku. */}
-      <View pointerEvents="none" style={styles.frame} />
-      <Text style={styles.cameraHint}>Skieruj aparat na kod QR zaproszenia</Text>
-    </View>
-  );
-}
-
 const styles = StyleSheet.create({
   flex: { flex: 1 },
   content: { padding: 16, gap: 16 },
-  camera: {
-    aspectRatio: 1,
-    borderRadius: 18,
-    overflow: "hidden",
-    borderWidth: StyleSheet.hairlineWidth,
-    backgroundColor: "#000",
-  },
-  center: { alignItems: "center", justifyContent: "center", gap: 12, padding: 24 },
-  frame: {
-    position: "absolute",
-    top: "18%",
-    left: "18%",
-    right: "18%",
-    bottom: "18%",
-    borderWidth: 3,
-    borderColor: "#ffffff",
-    borderRadius: 18,
-    opacity: 0.9,
-  },
-  cameraHint: {
-    position: "absolute",
-    bottom: 14,
-    alignSelf: "center",
-    color: "#ffffff",
-    fontWeight: "600",
-    textShadowColor: "rgba(0,0,0,0.6)",
-    textShadowRadius: 4,
-  },
-  permTitle: { fontSize: 18, fontWeight: "700", textAlign: "center" },
-  permBody: { fontSize: 15, textAlign: "center", lineHeight: 21 },
   row: { flexDirection: "row", alignItems: "center", gap: 8 },
   message: { fontWeight: "600" },
   label: { fontSize: 15, fontWeight: "600" },
