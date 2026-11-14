@@ -9,13 +9,19 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 from app.access import is_member
 from app.auth import decode_token
 from app.db import get_sessionmaker
+from app.models import User
 from app.realtime import manager
+from app.schemas import UserOut
 
 router = APIRouter(tags=["realtime"])
 
 AUTH_TIMEOUT_S = 5
+# Klient wysyła ping co 25 s. Przeglądarka w karcie w tle potrafi zwolnić timery
+# do 1 na minutę, więc dajemy zapas. Cisza dłużej = połączenie uznajemy za martwe.
+IDLE_TIMEOUT_S = 90
 CLOSE_UNAUTHORIZED = 4401
 CLOSE_NOT_FOUND = 4404
+CLOSE_IDLE = 4408
 
 
 async def _close(ws: WebSocket, code: int) -> None:
@@ -35,6 +41,18 @@ async def _authenticate(ws: WebSocket) -> uuid.UUID | None:
     return decode_token(token) if isinstance(token, str) else None
 
 
+async def _load_member(
+    sessionmaker: async_sessionmaker[AsyncSession], list_id: uuid.UUID, user_id: uuid.UUID
+) -> UserOut | None:
+    # Krótka sesja tylko na sprawdzenie członkostwa: nie trzymamy połączenia
+    # z bazą przez cały czas życia WebSocketu.
+    async with sessionmaker() as session:
+        if not await is_member(session, list_id, user_id):
+            return None
+        user = await session.get(User, user_id)
+        return UserOut.model_validate(user) if user else None
+
+
 @router.websocket("/ws/lists/{list_id}")
 async def list_socket(
     websocket: WebSocket,
@@ -48,21 +66,23 @@ async def list_socket(
         await _close(websocket, CLOSE_UNAUTHORIZED)
         return
 
-    # Krótka sesja tylko na sprawdzenie członkostwa: nie trzymamy połączenia
-    # z bazą przez cały czas życia WebSocketu.
-    async with sessionmaker() as session:
-        allowed = await is_member(session, list_id, user_id)
-    if not allowed:
+    user = await _load_member(sessionmaker, list_id, user_id)
+    if user is None:
         await _close(websocket, CLOSE_NOT_FOUND)
         return
 
-    manager.connect(list_id, websocket)
+    await manager.join(list_id, websocket, user)
     try:
+        online = [u.model_dump(mode="json") for u in manager.online(list_id)]
         await websocket.send_json(
-            {"type": "ready", "list_id": str(list_id), "user_id": str(user_id)}
+            {"type": "ready", "list_id": str(list_id), "user_id": str(user_id), "online": online}
         )
         while True:
-            raw = await websocket.receive_text()
+            try:
+                raw = await asyncio.wait_for(websocket.receive_text(), timeout=IDLE_TIMEOUT_S)
+            except TimeoutError:
+                await _close(websocket, CLOSE_IDLE)  # klient zrobi reconnect
+                break
             try:
                 msg = json.loads(raw)
             except json.JSONDecodeError:
@@ -72,4 +92,4 @@ async def list_socket(
     except WebSocketDisconnect:
         pass
     finally:
-        manager.disconnect(list_id, websocket)
+        await manager.leave(list_id, websocket)
