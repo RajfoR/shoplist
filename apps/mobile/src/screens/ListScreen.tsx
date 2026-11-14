@@ -17,6 +17,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { InviteSheet } from "../components/InviteSheet";
 import { ItemRow } from "../components/ItemRow";
+import { ProductScanner } from "../components/ProductScanner";
 import { joinUrl } from "../config";
 import { describeError } from "../errors";
 import type { RootStackParamList } from "../navigation";
@@ -40,6 +41,7 @@ export function ListScreen({ route, navigation }: Props) {
   } = useList(listId);
 
   const [inviteOpen, setInviteOpen] = useState(false);
+  const [scannerOpen, setScannerOpen] = useState(false);
 
   // Nagłówek: tytuł nadąża za zmianą nazwy (także zrobioną przez kogoś innego),
   // a po prawej przycisk zaproszenia, gdy lista jest już wczytana.
@@ -179,7 +181,11 @@ export function ListScreen({ route, navigation }: Props) {
             <Text style={[styles.toastText, { color: c.paper }]}>{describeError(error)}</Text>
           </Pressable>
         )}
-        <AddItemForm colors={c} onAdd={(name, qty) => void addItem(name, qty)} />
+        <AddItemForm
+          colors={c}
+          onAdd={(name, qty) => void addItem(name, qty)}
+          onScan={() => setScannerOpen(true)}
+        />
       </View>
 
       <InviteSheet
@@ -188,11 +194,22 @@ export function ListScreen({ route, navigation }: Props) {
         url={joinUrl(list.share_token)}
         onClose={() => setInviteOpen(false)}
       />
+      <ProductScanner
+        visible={scannerOpen}
+        onClose={() => setScannerOpen(false)}
+        onAdd={(name, qty) => void addItem(name, qty)}
+      />
     </KeyboardAvoidingView>
   );
 }
 
-function AddItemForm({ colors: c, onAdd }: { colors: Colors; onAdd: (name: string, qty: string | null) => void }) {
+interface AddItemFormProps {
+  colors: Colors;
+  onAdd: (name: string, qty: string | null) => void;
+  onScan: () => void;
+}
+
+function AddItemForm({ colors: c, onAdd, onScan }: AddItemFormProps) {
   const [name, setName] = useState("");
   const [quantity, setQuantity] = useState("");
   const nameRef = useRef<ComponentRef<typeof TextInput>>(null);
@@ -211,6 +228,14 @@ function AddItemForm({ colors: c, onAdd }: { colors: Colors; onAdd: (name: strin
 
   return (
     <View style={styles.addRow}>
+      <Pressable
+        onPress={onScan}
+        accessibilityRole="button"
+        accessibilityLabel="Skanuj kod kreskowy produktu"
+        style={({ pressed }) => [styles.scanButton, { borderColor: c.line, opacity: pressed ? 0.6 : 1 }]}
+      >
+        <BarcodeGlyph color={c.ink} />
+      </Pressable>
       <TextInput
         ref={nameRef}
         value={name}
@@ -245,6 +270,18 @@ function AddItemForm({ colors: c, onAdd }: { colors: Colors; onAdd: (name: strin
       >
         <Text style={[styles.addButtonText, { color: c.paper }]}>Dodaj</Text>
       </Pressable>
+    </View>
+  );
+}
+
+/** Ikona kodu kreskowego z pionowych kresek: bez biblioteki ikon. */
+function BarcodeGlyph({ color }: { color: string }) {
+  const bars = [2, 1, 3, 1, 2, 1, 1, 3, 1, 2];
+  return (
+    <View style={styles.glyph}>
+      {bars.map((width, i) => (
+        <View key={i} style={{ width, height: 18, backgroundColor: i % 2 === 0 ? color : "transparent" }} />
+      ))}
     </View>
   );
 }
@@ -320,6 +357,8 @@ const styles = StyleSheet.create({
   toast: { borderRadius: 14, paddingHorizontal: 16, paddingVertical: 12 },
   toastText: { fontWeight: "600" },
   addRow: { flexDirection: "row", gap: 8 },
+  scanButton: { width: 48, minHeight: 48, borderWidth: 1.5, borderRadius: 10, alignItems: "center", justifyContent: "center" },
+  glyph: { flexDirection: "row", alignItems: "center", gap: 1 },
   field: { minHeight: 48, borderWidth: 1.5, borderRadius: 10, paddingHorizontal: 12, fontSize: 16 },
   qty: { width: 72 },
   addButton: { minHeight: 48, paddingHorizontal: 18, borderRadius: 999, justifyContent: "center", alignItems: "center" },
